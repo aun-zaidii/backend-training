@@ -47,7 +47,7 @@ class UserLogin(APIView):
     def post(self, request: Request) -> Response:
         try:
             serializer = UserLoginSerializer(data=request.data)
-            serializer.is_valid()
+            serializer.is_valid(raise_exception=Trueclea)
             return Response({"success": serializer.data})
         except ValidationError as e:
             return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -58,8 +58,8 @@ class UserLogin(APIView):
 
 
 class UserLogout(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request: Request) -> Response:
         try:
