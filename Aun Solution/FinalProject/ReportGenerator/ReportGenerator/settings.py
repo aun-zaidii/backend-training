@@ -9,10 +9,10 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
 import os
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv, find_dotenv
 
 from dotenv import find_dotenv, load_dotenv
 
@@ -47,7 +47,9 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "django_rest_passwordreset",
+    'django_celery_beat',
     "user",
+    "census",
 ]
 
 MIDDLEWARE = [
@@ -164,3 +166,11 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+
+
+CELERY_BROKER_URL = os.getenv("EMAIL_HOST_PASSWORD")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
