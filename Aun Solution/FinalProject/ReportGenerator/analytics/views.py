@@ -13,8 +13,8 @@ class AggrigationView(APIView):
     def post(self, request):
        filters = request.data
        try:
-        response = data_aggrigation(filters)
-        return response
+        result = data_aggrigation(filters)
+        return Response({'success':result})
        except Exception as e:
           return Response({'failed':str(e)})
 
@@ -25,7 +25,7 @@ class StatsView(APIView):
     def post(self, request):
        filters = request.data
        try:
-        response = statistical_analysis(filters)
-        return response
+        result = statistical_analysis(filters)
+        return Response({'success':result})
        except Exception as e:
           return Response({'failed':str(e)})

@@ -1,9 +1,30 @@
 from census.models import CensusCounty
 import pandas as pd
+import numpy as np
+import hashlib, json
+from django.core.cache import cache
+from django.conf import settings
 
+def clean_value(value):
+        if pd.isna(value) or np.isinf(value):
+            return None
+        if hasattr(value, 'item'):
+            return value.item()
+        return value
+
+def generate_cache_key(data, prefix='census_analytics'):
+    sorted_data = json.dumps(data, sort_keys=True)
+    key_hash = hashlib.md5(sorted_data.encode()).hexdigest()
+    return f"{prefix}_{key_hash}"
 
 
 def data_aggrigation (filters):
+    cache_key = generate_cache_key(filters, 'census_aggrigation')
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        print(f"Cache HIT for {cache_key}")
+        return cached_response
+    print(f"Cache MISS for {cache_key}")
     queryset = CensusCounty.objects.select_related("state","detail")
     state_no = filters.get('state_no')
     year = filters.get('year')
@@ -91,13 +112,21 @@ def data_aggrigation (filters):
         "median_household_income": ["mean", "sum","min", "max"], 
     }
     aggrigated_data = df.agg(agg_map)
+    aggrigated_data = aggrigated_data.replace([np.nan, np.inf, -np.inf], None)
     result = aggrigated_data.to_dict(orient="index")
+    cache.set(cache_key, result, timeout=getattr(settings, 'CACHE_TIMEOUT', 86400))
     return result    
 
 
 
 
 def statistical_analysis(filters):
+    cache_key = generate_cache_key(filters, 'census_analytics')
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        print(f"Cache HIT for {cache_key}")
+        return cached_response
+    print(f"Cache MISS for {cache_key}")
     queryset = CensusCounty.objects.select_related("state","detail")
     state_no = filters.get('state_no')
     year = filters.get('year')
@@ -152,13 +181,12 @@ def statistical_analysis(filters):
     for col in df.columns: 
         col_data = df[col].dropna()
         stats[col] = {
-            "25th_percentile": col_data.quantile(0.25),
-            "50th_percentile (Median)": col_data.quantile(0.50),
-            "75th_percentile": col_data.quantile(0.75),
-            "95th_percentile": col_data.quantile(0.95),
-            "Standard Deviation": col_data.std(),
-            "Variance": col_data.var(),
+            "25th_percentile": clean_value(col_data.quantile(0.25)),
+            "50th_percentile": clean_value(col_data.quantile(0.50)),
+            "75th_percentile": clean_value(col_data.quantile(0.75)),
+            "95th_percentile": clean_value(col_data.quantile(0.95)),
+            "Standard Deviation": clean_value(col_data.std()),
+            "Variance": clean_value(col_data.var()),
         }
-    result = pd.DataFrame(stats).T 
-
-    return result
+    cache.set(cache_key, stats, timeout=getattr(settings, 'CACHE_TIMEOUT', 86400))
+    return stats 
