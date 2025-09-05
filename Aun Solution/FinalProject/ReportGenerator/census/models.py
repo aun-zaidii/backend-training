@@ -35,7 +35,7 @@ class CensusCounty(models.Model):
         return f"{self.county_no}"
 
 class CensusDetail(models.Model):
-    county: CensusCounty = models.OneToOneField(CensusCounty, on_delete=models.CASCADE)
+    county: CensusCounty = models.OneToOneField(CensusCounty, on_delete=models.CASCADE, related_name='detail')
     male_population: int = models.IntegerField(default=0)
     female_population: int = models.IntegerField(default=0)
     white_alone_pct: float = models.FloatField(default=0.0)
