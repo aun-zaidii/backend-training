@@ -1,24 +1,22 @@
-from django.db import models
-from .enums import StatusChoices
 from datetime import datetime
 
+from django.db import models
+
+from .enums import StatusChoices
 
 
 class CensusState(models.Model):
-    state_no: str =models.CharField(max_length=25, unique=True)
-    state_name: str = models.CharField(max_length=50, default='Unknown')
-    
-    def __str__(self)-> str:
-        return f"{self.state_no}" 
+    state_no: str = models.CharField(max_length=25, unique=True)
+    state_name: str = models.CharField(max_length=50, default="Unknown")
 
-
-
+    def __str__(self) -> str:
+        return f"{self.state_no}"
 
 
 class CensusCounty(models.Model):
     state: CensusState = models.ForeignKey(CensusState, on_delete=models.CASCADE)
     county_no: str = models.CharField(max_length=25)
-    county_name: str = models.CharField(max_length=50, default='Unknown')
+    county_name: str = models.CharField(max_length=50, default="Unknown")
     year: int = models.IntegerField()
     total_population: int = models.IntegerField(default=0)
     total_houses: int = models.IntegerField(default=0.0)
@@ -29,13 +27,16 @@ class CensusCounty(models.Model):
     bachelors_or_higher_degree_pct: float = models.FloatField(default=0.0)
 
     class Meta:
-        unique_together = ('state', 'county_no', 'year')
+        unique_together = ("state", "county_no", "year")
 
-    def __str__(self)-> str:
+    def __str__(self) -> str:
         return f"{self.county_no}"
 
+
 class CensusDetail(models.Model):
-    county: CensusCounty = models.OneToOneField(CensusCounty, on_delete=models.CASCADE, related_name='detail')
+    county: CensusCounty = models.OneToOneField(
+        CensusCounty, on_delete=models.CASCADE, related_name="detail"
+    )
     male_population: int = models.IntegerField(default=0)
     female_population: int = models.IntegerField(default=0)
     white_alone_pct: float = models.FloatField(default=0.0)
@@ -59,11 +60,10 @@ class CensusDetail(models.Model):
     workers_car_pct: float = models.FloatField(default=0.0)
     workers_home_pct: float = models.FloatField(default=0.0)
     health_insurance_coverage_pct: float = models.FloatField(default=0.0)
-    disability_pct: float  = models.FloatField(default=0.0)
+    disability_pct: float = models.FloatField(default=0.0)
 
-    def __str__(self)-> str:
+    def __str__(self) -> str:
         return f"{self.county}"
-
 
 
 class CensusLog(models.Model):
@@ -74,5 +74,5 @@ class CensusLog(models.Model):
     log_error: str = models.TextField(blank=True, null=True)
     status: str = models.CharField(max_length=30, choices=StatusChoices.choices)
 
-    def __str__(self)-> str:
-        return f"{self.name}" 
+    def __str__(self) -> str:
+        return f"{self.name}"

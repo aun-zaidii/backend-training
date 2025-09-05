@@ -1,44 +1,44 @@
+import hashlib
+import json
+
 import pandas as pd
-from census.models import *
-from django.http import HttpResponse
-import hashlib, json
-from django.core.cache import cache
 from django.conf import settings
+from django.core.cache import cache
+from django.http import HttpResponse
+
+from census.models import *
 
 
-
-
-def generate_cache_key(data, prefix='county_report'):
+def generate_cache_key(data, prefix="county_report"):
     sorted_data = json.dumps(data, sort_keys=True)
     key_hash = hashlib.md5(sorted_data.encode()).hexdigest()
     return f"{prefix}_{key_hash}"
 
 
-
 def generate_county_report(data):
-    cache_key = generate_cache_key(data, 'county_report')
+    cache_key = generate_cache_key(data, "county_report")
     cached_response = cache.get(cache_key)
     if cached_response:
         print(f"Cache HIT for {cache_key}")
         return cached_response
     print(f"Cache MISS for {cache_key}")
-    queryset = CensusCounty.objects.select_related('state').all()
-    state_no = data.get('state_no')
-    year = data.get('year')
-    min_population = data.get('min_population')
-    max_population = data.get('max_population')
-    min_houses = data.get('min_houses')
-    max_houses = data.get('max_houses')
-    min_ownership = data.get('min_ownership')
-    max_ownership = data.get('max_ownership')
-    min_poverty = data.get('min_poverty')
-    max_poverty = data.get('max_poverty')
-    min_unemployment = data.get('min_unemployment')
-    max_unemployment = data.get('max_unemployment')
-    min_age = data.get('min_age')
-    max_age = data.get('max_age')
-    min_bachelors = data.get('min_bachelors')
-    max_bachelors = data.get('max_bachelors')
+    queryset = CensusCounty.objects.select_related("state").all()
+    state_no = data.get("state_no")
+    year = data.get("year")
+    min_population = data.get("min_population")
+    max_population = data.get("max_population")
+    min_houses = data.get("min_houses")
+    max_houses = data.get("max_houses")
+    min_ownership = data.get("min_ownership")
+    max_ownership = data.get("max_ownership")
+    min_poverty = data.get("min_poverty")
+    max_poverty = data.get("max_poverty")
+    min_unemployment = data.get("min_unemployment")
+    max_unemployment = data.get("max_unemployment")
+    min_age = data.get("min_age")
+    max_age = data.get("max_age")
+    min_bachelors = data.get("min_bachelors")
+    max_bachelors = data.get("max_bachelors")
     if state_no:
         queryset = queryset.filter(state__state_no=state_no)
     if year:
@@ -75,14 +75,14 @@ def generate_county_report(data):
     for county in queryset:
         report_data.append(
             {
-                "state_name" : county.state.state_name,
-                "state_no" : county.state.state_no,
-                "county_no" : county.county_no,
-                "county_name" : county.county_name,
-                "year" : county.year,
-                "total_population" : county.total_population,
-                "total_houses" : county.total_houses,
-                "home_ownership_rate" : county.home_ownership_rate,
+                "state_name": county.state.state_name,
+                "state_no": county.state.state_no,
+                "county_no": county.county_no,
+                "county_name": county.county_name,
+                "year": county.year,
+                "total_population": county.total_population,
+                "total_houses": county.total_houses,
+                "home_ownership_rate": county.home_ownership_rate,
                 "poverty_rate": county.poverty_rate,
                 "unemployment_rate": county.unemployment_rate,
                 "median_age": county.median_age,
@@ -91,27 +91,24 @@ def generate_county_report(data):
         )
 
     df = pd.DataFrame(report_data)
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="census_report.csv"'
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="census_report.csv"'
     df.to_csv(response, index=False)
-    cache.set(cache_key, response, timeout=getattr(settings, 'CACHE_TIMEOUT', 86400))
+    cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return response
 
-            
 
-
-    
 def generate_detail_report(county_no):
-    cache_key = generate_cache_key({'county_no': county_no}, 'detail_report')
+    cache_key = generate_cache_key({"county_no": county_no}, "detail_report")
     cached_response = cache.get(cache_key)
     if cached_response:
         return cached_response
-    queryset = CensusDetail.objects.select_related('county').filter(county__county_no =county_no )
+    queryset = CensusDetail.objects.select_related("county").filter(
+        county__county_no=county_no
+    )
     df = pd.DataFrame(queryset)
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="county_detail_report.csv"'
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="county_detail_report.csv"'
     df.to_csv(response, index=False)
-    cache.set(cache_key, response, timeout=getattr(settings, 'CACHE_TIMEOUT', 86400))
+    cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return response
-
-

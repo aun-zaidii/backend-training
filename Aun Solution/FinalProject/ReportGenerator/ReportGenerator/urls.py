@@ -25,4 +25,3 @@ urlpatterns = [
     path("", include("reports.urls")),
     path("", include("analytics.urls")),
 ]
-
