@@ -2,20 +2,38 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from .service import *
-from .tasks import *
+from user.permissions import (IsAdmin, IsAdminOrModeratorOrViewer, IsModerator,
+                              IsViewer)
 
+from .models import CensusLog
 from .serializers import CensusLogSerializer
+from .service import request_data_for_multiple_years, save_to_db
+from .tasks import process_census_data
 
 
 class DataFetchView(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [IsAdmin]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
-            years = [2017, 2018]
+            years = [
+                2010,
+                2011,
+                2012,
+                2013,
+                2014,
+                2015,
+                2016,
+                2017,
+                2018,
+                2019,
+                2021,
+                2022,
+                2023,
+            ]
             result = process_census_data.delay(years)
             return Response({"result": "success"}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -23,8 +41,8 @@ class DataFetchView(APIView):
 
 
 class StatusLog(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    permission_classes = [IsAdmin]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
@@ -36,13 +54,13 @@ class StatusLog(APIView):
             return Response({"failed": str(e)})
 
 
-class TestView(APIView):
-    permission_classes = [AllowAny]
-    authentication_classes = []
+class ManualFetchView(APIView):
+    permission_classes = [IsAdmin]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
-            years = [2010, 2014]
+            years = [2021]
             data = request_data_for_multiple_years(years)
             result = save_to_db(data)
             return Response({"result": "success"}, status=status.HTTP_200_OK)

@@ -1,9 +1,54 @@
+import os
+from typing import Dict, List, Union, Optional
+
 import requests
 
-from .models import *
+from .models import CensusCounty, CensusDetail, CensusState
+
+api:Optional[str] = (os.getenv("API"))
+variables: str = (
+    "NAME,DP05_0001E,DP05_0017E,DP03_0062E,DP03_0128PE,DP03_0009PE,DP04_0001E,DP04_0046PE,DP02_0068PE,DP05_0002E,DP05_0003E,DP05_0077PE,DP05_0078PE,DP05_0080PE,DP05_0071PE,DP02_0094PE,DP02_0111PE,DP02_0016E,DP02_0017E,DP02_0019PE,DP02_0022PE,DP02_0067PE,DP04_0047PE,DP04_0019E,DP04_0045E,DP04_0134E,DP04_0101E,DP03_0063E,DP03_0021PE,DP03_0022PE,DP03_0024PE,DP03_0096PE,DP02_0072PE"
+)
+keys: List[str] = [
+    "name",
+    "total_population",
+    "median_age",
+    "median_household_income",
+    "poverty_rate",
+    "unemployment_rate",
+    "total_houses",
+    "home_ownership_rate",
+    "bachelors_or_higher_degree_pct",
+    "male_population",
+    "female_population",
+    "white_alone_pct",
+    "black_alone_pct",
+    "asian_alone_pct",
+    "hispanic_latino_pct",
+    "foreign_born_pct",
+    "non_english_home_pct",
+    "avg_household_size",
+    "avg_family_size",
+    "married_couple_families_pct",
+    "single_parent_families_pct",
+    "hs_or_higher_pct",
+    "renter_occupied_pct",
+    "median_year_built",
+    "median_rooms",
+    "median_gross_rent",
+    "median_owner_costs_mortgage",
+    "median_household_income",
+    "workers_public_transport_pct",
+    "workers_car_pct",
+    "workers_home_pct",
+    "health_insurance_coverage_pct",
+    "disability_pct",
+    "state",
+    "county_no",
+]
 
 
-def request_data_for_single_year(year):
+def request_data_for_single_year(year:int) -> List[Dict[str, Optional[Union[int, float, str]]]]:
     if year == 2020:
         raise ValueError(
             "ACS 1-Year Profile estimates were not published for 2020 due to COVID-19."
@@ -16,64 +61,31 @@ def request_data_for_single_year(year):
         raise ValueError(
             f"ACS 1-Year data for {year} is not yet released. The latest available year is 2023."
         )
-    variables = "NAME,DP05_0001E,DP05_0017E,DP03_0062E,DP03_0128PE,DP03_0009PE,DP04_0001E,DP04_0046PE,DP02_0068PE,DP05_0002E,DP05_0003E,DP05_0077PE,DP05_0078PE,DP05_0080PE,DP05_0071PE,DP02_0094PE,DP02_0111PE,DP02_0016E,DP02_0017E,DP02_0019PE,DP02_0022PE,DP02_0067PE,DP04_0047PE,DP04_0019E,DP04_0045E,DP04_0134E,DP04_0101E,DP03_0063E,DP03_0021PE,DP03_0022PE,DP03_0024PE,DP03_0096PE,DP02_0072PE"
-    keys = [
-        "name",
-        "total_population",
-        "median_age",
-        "median_household_income",
-        "poverty_rate",
-        "unemployment_rate",
-        "total_houses",
-        "home_ownership_rate",
-        "bachelors_or_higher_degree_pct",
-        "male_population",
-        "female_population",
-        "white_alone_pct",
-        "black_alone_pct",
-        "asian_alone_pct",
-        "hispanic_latino_pct",
-        "foreign_born_pct",
-        "non_english_home_pct",
-        "avg_household_size",
-        "avg_family_size",
-        "married_couple_families_pct",
-        "single_parent_families_pct",
-        "hs_or_higher_pct",
-        "renter_occupied_pct",
-        "median_year_built",
-        "median_rooms",
-        "median_gross_rent",
-        "median_owner_costs_mortgage",
-        "median_household_income",
-        "workers_public_transport_pct",
-        "workers_car_pct",
-        "workers_home_pct",
-        "health_insurance_coverage_pct",
-        "disability_pct",
-        "state",
-        "county",
-    ]
 
-    url = f"https://api.census.gov/data/{year}/acs/acs1/profile"
-    params = {
+    url: str = f"{api}/data/{year}/acs/acs1/profile"
+    params: Dict[str, Optional[str]] = {
         "get": variables,
         "for": "county:*",
         "in": "state:*",
-        "key": "54eb7381f889c8b38d11542e25f99a07708b3322",
+        "key": os.getenv("CENSUS_API_KEY"),
     }
-    data = requests.get(url, params=params).json()
-    key_data = [dict(zip(keys, row)) for row in data]
-    formatted_data = key_data[1:]
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    data: List[List [Optional[Union[str, int, float]]]] = response.json()
+    key_data: List[Dict[str, Optional[Union[str, int, float]]]] = [
+        dict(zip(keys, row)) for row in data
+    ]
+    formatted_data: List[Dict[str, Optional[Union[str, int, float]]]] = key_data[1:]
     for row in formatted_data:
-        county, state = row["name"].rsplit(", ", 1)
+        county, state = str(row["name"]).rsplit(", ", 1)
         row["state_name"] = state
         row["county_name"] = county
         row["year"] = year
-    typed_data = clean_and_cast(formatted_data)
+    typed_data: List[Dict[str, Optional[Union[str, int, float]]]] = clean_and_cast(formatted_data)
     for record in typed_data:
         for key in record:
-            if record[key] is not None and type(record[key]) != str and record[key] < 0:
+            value = record[key]
+            if value is not None and isinstance(value, (int, float)) and  value < 0:
                 record[key] = None
     for record in typed_data:
         for key in record:
@@ -82,8 +94,8 @@ def request_data_for_single_year(year):
     return typed_data
 
 
-def request_data_for_multiple_years(years):
-    data = []
+def request_data_for_multiple_years(years:List[int]) ->Dict[str, List[List[Dict[str, Optional[Union[int, float, str]]]]]]:
+    data: List[List[Dict[str, Optional[Union[int, float, str]]]]] = []
     for year in years:
         single_year_data = request_data_for_single_year(year)
         data.append(single_year_data)
@@ -91,7 +103,9 @@ def request_data_for_multiple_years(years):
     return final_data
 
 
-def clean_and_cast(data):
+def clean_and_cast(
+    data: List[Dict[str, Optional[Union[int, float, str]]]],
+) -> List[Dict[str, Optional[Union[str, int, float]]]]:
     fields_to_cast = {
         "total_population": int,
         "median_age": float,
@@ -137,7 +151,7 @@ def clean_and_cast(data):
     return data
 
 
-def save_to_db(data):
+def save_to_db(data: Dict[str, List[List[Dict[str, Union[str, int, float]]]]]) -> None:
     for year in data["result"]:
         for record in year:
             state, _ = CensusState.objects.get_or_create(
@@ -146,10 +160,10 @@ def save_to_db(data):
             )
             county, _ = CensusCounty.objects.get_or_create(
                 state=state,
-                county_no=record["county"],
-                year=record["year"],
+                county_name=record.get("county_name"),
+                year=record.get("year"),
                 defaults={
-                    "county_name": record.get("county_name"),
+                    "county_no": record.get("county_no"),
                     "total_population": record.get("total_population"),
                     "total_houses": record.get("total_houses"),
                     "home_ownership_rate": record.get("home_ownership_rate"),
@@ -200,4 +214,3 @@ def save_to_db(data):
                     "disability_pct": record.get("disability_pct"),
                 },
             )
-    return

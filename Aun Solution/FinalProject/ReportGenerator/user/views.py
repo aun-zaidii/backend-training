@@ -7,8 +7,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import *
+from .serializers import (UserLoginSerializer, UserRegistrationSerializer,
+                          UserUpdateSerializer)
 
 
 class UserRegistrationView(APIView):
@@ -47,7 +49,7 @@ class UserLogin(APIView):
     def post(self, request: Request) -> Response:
         try:
             serializer = UserLoginSerializer(data=request.data)
-            serializer.is_valid(raise_exception=Trueclea)
+            serializer.is_valid(raise_exception=True)
             return Response({"success": serializer.data})
         except ValidationError as e:
             return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)

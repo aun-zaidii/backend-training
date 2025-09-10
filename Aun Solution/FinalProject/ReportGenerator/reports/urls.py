@@ -1,7 +1,8 @@
 from django.urls import path
 
-from .views import *
+from .views import CountyReportView, DetailReportView
 
 urlpatterns = [
-    path("testreport/", CensusReportView.as_view(), name="test_report"),
+    path("county_report/", CountyReportView.as_view(), name="county_report"),
+    path("detail_report/", DetailReportView.as_view(), name="detail_report"),
 ]

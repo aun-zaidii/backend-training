@@ -7,10 +7,10 @@ from user.enums import RoleChoices
 
 
 class User(AbstractUser):
-    email: str = models.EmailField(unique=True)
-    username: str = models.CharField(max_length=30, unique=True)
-    role: RoleChoices = models.CharField(max_length=30, choices=RoleChoices.choices)
-    created_at: datetime = models.DateTimeField(auto_now=True)
+    email = models.EmailField(unique=True)
+    username = models.CharField(max_length=30, unique=True)
+    role = models.CharField(max_length=30, choices=RoleChoices.choices)
+    created_at = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

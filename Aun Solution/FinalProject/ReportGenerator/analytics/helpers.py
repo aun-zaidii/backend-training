@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from django.conf import settings
 from django.core.cache import cache
+from django.http import HttpResponse
 
 from census.models import CensusCounty
 
@@ -31,23 +32,23 @@ def data_aggrigation(filters):
         return cached_response
     print(f"Cache MISS for {cache_key}")
     queryset = CensusCounty.objects.select_related("state", "detail")
-    state_no = filters.get("state_no")
+    state_name = filters.get("state_name")
     year = filters.get("year")
-    county_no = filters.get("county_no")
-    if state_no:
-        queryset = queryset.filter(state__state_no=state_no)
+    county_name = filters.get("county_name")
+    if state_name:
+        queryset = queryset.filter(state__state_name=state_name)
     if year:
         queryset = queryset.filter(year=year)
-    if county_no:
-        queryset = queryset.filter(county_no=county_no)
+    if county_name:
+        queryset = queryset.filter(county_name=county_name)
     data = []
     for county in queryset:
         detail = county.detail
 
         data.append(
             {
-                "state_no": county.state.state_no,
-                "county_no": county.county_no,
+                "state_name": county.state.state_name,
+                "county_name": county.county_name,
                 "total_population": county.total_population,
                 "total_houses": county.total_houses,
                 "home_ownership_rate": county.home_ownership_rate,
@@ -84,8 +85,8 @@ def data_aggrigation(filters):
 
     df = pd.DataFrame(data)
     agg_map = {
-        "state_no": ["nunique"],
-        "county_no": ["count"],
+        "state_name": ["nunique"],
+        "county_name": ["count"],
         "total_population": ["sum", "mean", "min", "max"],
         "total_houses": ["sum", "mean", "min", "max"],
         "male_population": ["sum", "mean", "min", "max"],
@@ -133,15 +134,15 @@ def statistical_analysis(filters):
         return cached_response
     print(f"Cache MISS for {cache_key}")
     queryset = CensusCounty.objects.select_related("state", "detail")
-    state_no = filters.get("state_no")
+    state_name = filters.get("state_name")
     year = filters.get("year")
-    county_no = filters.get("county_no")
-    if state_no:
-        queryset = queryset.filter(state__state_no=state_no)
+    county_name = filters.get("county_name")
+    if state_name:
+        queryset = queryset.filter(state__state_name=state_name)
     if year:
         queryset = queryset.filter(year=year)
-    if county_no:
-        queryset = queryset.filter(county_no=county_no)
+    if county_name:
+        queryset = queryset.filter(county_name=county_name)
     data = []
     for county in queryset:
         detail = county.detail
@@ -197,3 +198,76 @@ def statistical_analysis(filters):
         }
     cache.set(cache_key, stats, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return stats
+
+
+def time_based_analysis(filters):
+    cache_key = generate_cache_key(filters, "census_time_trends")
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        print(f"Cache HIT for {cache_key}")
+        return cached_response
+    print(f"Cache MISS for {cache_key}")
+
+    queryset = CensusCounty.objects.select_related("state", "detail")
+    state_name = filters.get("state_name")
+    county_name = filters.get("county_name")
+    start_year = filters.get("start_year")
+    end_year = filters.get("end_year")
+
+    if state_name:
+        queryset = queryset.filter(state__state_name=state_name)
+    if county_name:
+        queryset = queryset.filter(county_name=county_name)
+    if start_year and end_year:
+        queryset = queryset.filter(year__range=[start_year, end_year])
+    elif start_year:
+        queryset = queryset.filter(year__gte=start_year)
+    elif end_year:
+        queryset = queryset.filter(year__lte=end_year)
+
+    data = []
+    for county in queryset:
+        detail = county.detail
+        data.append(
+            {
+                "year": county.year,
+                "state_name": county.state.state_name,
+                "county_name": county.county_name,
+                "total_population": county.total_population,
+                "avg_family_size": detail.avg_family_size,
+                "avg_household_size": detail.avg_household_size,
+                "median_household_income": detail.median_household_income,
+            }
+        )
+
+    df = pd.DataFrame(data)
+    yearly = (
+        df.groupby("year")
+        .agg(
+            {
+                "total_population": "sum",
+                "avg_family_size": "mean",
+                "avg_household_size": "mean",
+                "median_household_income": "mean",
+            }
+        )
+        .sort_index()
+    )
+    records = []
+    for col in yearly.columns:
+        if col.endswith("_growth_rate"):  
+            continue
+        yearly[f"{col}_growth_rate"] = yearly[col].pct_change() * 100
+        for year, value in yearly[col].items():
+            records.append({
+                "year": year,
+                "metric": col,
+                "value": None if pd.isna(value) else round(value, 2),
+                "growth_rate": None if pd.isna(yearly[f"{col}_growth_rate"].loc[year]) else round(yearly[f"{col}_growth_rate"].loc[year], 2),
+            })
+    csv_df = pd.DataFrame(records)
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="time_trends.csv"'
+    csv_df.to_csv(path_or_buf=response, index=False)
+    cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
+    return response
