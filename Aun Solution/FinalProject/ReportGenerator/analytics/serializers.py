@@ -7,28 +7,24 @@ class AggregationStatsRequestSerializer(serializers.Serializer):
     county_name = serializers.CharField(required=False)
 
 
-class FieldAggregationSerializer(serializers.Serializer):
-    state_name = serializers.CharField(required=False, allow_null=True)
-    county_name = serializers.CharField(required=False, allow_null=True)
-    total_population = serializers.FloatField(required=False, allow_null=True)
-    total_houses = serializers.FloatField(required=False, allow_null=True)
-    median_age = serializers.FloatField(required=False, allow_null=True)
-    median_household_income = serializers.FloatField(required=False, allow_null=True)
-    poverty_rate = serializers.FloatField(required=False, allow_null=True)
-    unemployment_rate = serializers.FloatField(required=False, allow_null=True)
-    home_ownership_rate = serializers.FloatField(required=False, allow_null=True)
-    bachelors_or_higher_degree_pct = serializers.FloatField(
-        required=False, allow_null=True
-    )
+class ColumnAggregationSerializer(serializers.Serializer):
+    sum = serializers.FloatField(required=False, allow_null=True)
+    mean = serializers.FloatField(required=False, allow_null=True)
+    min = serializers.FloatField(required=False, allow_null=True)
+    max = serializers.FloatField(required=False, allow_null=True)
+    count = serializers.FloatField(required=False, allow_null=True)
+    nunique = serializers.FloatField(required=False, allow_null=True)
 
 
 class AggregationResponseSerializer(serializers.Serializer):
-    sum = FieldAggregationSerializer(required=False)
-    mean = FieldAggregationSerializer(required=False)
-    min = FieldAggregationSerializer(required=False)
-    max = FieldAggregationSerializer(required=False)
-    count = FieldAggregationSerializer(required=False, allow_null=True)
-    nunique = FieldAggregationSerializer(required=False, allow_null=True)
+    total_population = ColumnAggregationSerializer(required=False)
+    total_houses = ColumnAggregationSerializer(required=False)
+    median_age = ColumnAggregationSerializer(required=False)
+    median_household_income = ColumnAggregationSerializer(required=False)
+    poverty_rate = ColumnAggregationSerializer(required=False)
+    unemployment_rate = ColumnAggregationSerializer(required=False)
+    home_ownership_rate = ColumnAggregationSerializer(required=False)
+    bachelors_or_higher_degree_pct = ColumnAggregationSerializer(required=False)
 
 
 class PercentileStatsSerializer(serializers.Serializer):
@@ -84,6 +80,7 @@ class StatisticalAnalysisResponseSerializer(serializers.Serializer):
     workers_home_pct = PercentileStatsSerializer(required=False)
     health_insurance_coverage_pct = PercentileStatsSerializer(required=False)
     disability_pct = PercentileStatsSerializer(required=False)
+
 
 class TimeBaseRequestSerializer(serializers.Serializer):
     state_name = serializers.CharField(required=False)

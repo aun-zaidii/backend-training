@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import AggrigationView, StatsView,TimeBaseAnalytics
+from .views import AggrigationView, StatsView, TimeBaseAnalytics
 
 urlpatterns = [
     path("aggrigation/", AggrigationView.as_view(), name="agrigation"),

@@ -7,22 +7,24 @@ from .enums import RoleChoices
 
 class IsAdmin(BasePermission):
     def has_permission(self, request: Request, view: APIView):
-        return request.user.role == RoleChoices.admin
+        return hasattr(request.user, "role") and request.user.role == RoleChoices.admin
 
 
 class IsModerator(BasePermission):
     def has_permission(self, request: Request, view: APIView):
-        return request.user.role == RoleChoices.moderator
+        return (
+            hasattr(request.user, "role") and request.user.role == RoleChoices.moderator
+        )
 
 
 class IsViewer(BasePermission):
     def has_permission(self, request: Request, view: APIView) -> bool:
-        return request.user.role == RoleChoices.viewer
+        return hasattr(request.user, "role") and request.user.role == RoleChoices.viewer
 
 
 class IsAdminOrModeratorOrViewer(BasePermission):
     def has_permission(self, request, view):
-        return request.user.role in [
+        return hasattr(request.user, "role") and request.user.role in [
             RoleChoices.admin,
             RoleChoices.moderator,
             RoleChoices.viewer,
@@ -31,7 +33,7 @@ class IsAdminOrModeratorOrViewer(BasePermission):
 
 class IsAdminOrModerator(BasePermission):
     def has_permission(self, request, view):
-        return request.user.role in [
+        return hasattr(request.user, "role") and request.user.role in [
             RoleChoices.admin,
             RoleChoices.moderator,
         ]

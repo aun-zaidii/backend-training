@@ -8,7 +8,8 @@ from user.permissions import (IsAdmin, IsAdminOrModerator,
                               IsAdminOrModeratorOrViewer, IsModerator,
                               IsViewer)
 
-from .helpers import data_aggrigation, statistical_analysis, time_based_analysis
+from .helpers import (data_aggrigation, statistical_analysis,
+                      time_based_analysis)
 from .serializers import (AggregationResponseSerializer,
                           AggregationStatsRequestSerializer,
                           StatisticalAnalysisResponseSerializer,
@@ -46,7 +47,7 @@ class StatsView(APIView):
             return Response({"success": final_result})
         except Exception as e:
             return Response({"failed": str(e)})
-        
+
 
 class TimeBaseAnalytics(APIView):
     permission_classes = [IsAdminOrModerator]
@@ -54,12 +55,10 @@ class TimeBaseAnalytics(APIView):
 
     def post(self, request):
         try:
-            serializer = TimeBaseRequestSerializer(data = request.data)
+            serializer = TimeBaseRequestSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             result = time_based_analysis(serializer.data)
             response = result
             return response
         except Exception as e:
-            return Response({'failed':str(e)})
-
-
+            return Response({"failed": str(e)})

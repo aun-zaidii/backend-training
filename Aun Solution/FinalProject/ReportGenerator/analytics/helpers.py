@@ -1,5 +1,7 @@
 import hashlib
+import io
 import json
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -24,7 +26,9 @@ def generate_cache_key(data, prefix="census_analytics"):
     return f"{prefix}_{key_hash}"
 
 
-def data_aggrigation(filters):
+def data_aggrigation(
+    filters: Dict[str, Union[str, int]],
+) -> Dict[str, Dict[str, Optional[Union[int, float]]]]:
     cache_key = generate_cache_key(filters, "census_aggrigation")
     cached_response = cache.get(cache_key)
     if cached_response:
@@ -41,7 +45,7 @@ def data_aggrigation(filters):
         queryset = queryset.filter(year=year)
     if county_name:
         queryset = queryset.filter(county_name=county_name)
-    data = []
+    data: List[Dict[str, Optional[Union[int, float, str]]]] = []
     for county in queryset:
         detail = county.detail
 
@@ -84,9 +88,9 @@ def data_aggrigation(filters):
         )
 
     df = pd.DataFrame(data)
-    agg_map = {
-        "state_name": ["nunique"],
-        "county_name": ["count"],
+    agg_map: Dict[str, Union[str, List[str]]] = {
+        "state_name": "nunique",
+        "county_name": "count",
         "total_population": ["sum", "mean", "min", "max"],
         "total_houses": ["sum", "mean", "min", "max"],
         "male_population": ["sum", "mean", "min", "max"],
@@ -119,14 +123,14 @@ def data_aggrigation(filters):
         "median_owner_costs_mortgage": ["mean", "min", "max"],
         "median_household_income": ["mean", "sum", "min", "max"],
     }
-    aggrigated_data = df.agg(agg_map)
+    aggrigated_data = df.agg(agg_map)  # type: ignore
     aggrigated_data = aggrigated_data.replace([np.nan, np.inf, -np.inf], None)
-    result = aggrigated_data.to_dict(orient="index")
+    result = aggrigated_data.to_dict()
     cache.set(cache_key, result, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return result
 
 
-def statistical_analysis(filters):
+def statistical_analysis(filters: Dict[str, Union[str, int]]):
     cache_key = generate_cache_key(filters, "census_analytics")
     cached_response = cache.get(cache_key)
     if cached_response:
@@ -143,7 +147,7 @@ def statistical_analysis(filters):
         queryset = queryset.filter(year=year)
     if county_name:
         queryset = queryset.filter(county_name=county_name)
-    data = []
+    data: List[Dict[str, Optional[Union[int, float]]]] = []
     for county in queryset:
         detail = county.detail
 
@@ -184,7 +188,7 @@ def statistical_analysis(filters):
         )
 
     df = pd.DataFrame(data)
-    stats = {}
+    stats: Dict[str, Dict[str, Optional[float]]] = {}
 
     for col in df.columns:
         col_data = df[col].dropna()
@@ -200,7 +204,7 @@ def statistical_analysis(filters):
     return stats
 
 
-def time_based_analysis(filters):
+def time_based_analysis(filters: Dict[str, Union[str, int]]) -> HttpResponse:
     cache_key = generate_cache_key(filters, "census_time_trends")
     cached_response = cache.get(cache_key)
     if cached_response:
@@ -225,7 +229,7 @@ def time_based_analysis(filters):
     elif end_year:
         queryset = queryset.filter(year__lte=end_year)
 
-    data = []
+    data: List[Dict[str, Optional[Union[int, float, str]]]] = []
     for county in queryset:
         detail = county.detail
         data.append(
@@ -255,19 +259,22 @@ def time_based_analysis(filters):
     )
     records = []
     for col in yearly.columns:
-        if col.endswith("_growth_rate"):  
+        if col.endswith("_growth_rate"):
             continue
         yearly[f"{col}_growth_rate"] = yearly[col].pct_change() * 100
         for year, value in yearly[col].items():
-            records.append({
-                "year": year,
-                "metric": col,
-                "value": None if pd.isna(value) else round(value, 2),
-                "growth_rate": None if pd.isna(yearly[f"{col}_growth_rate"].loc[year]) else round(yearly[f"{col}_growth_rate"].loc[year], 2),
-            })
+            records.append(
+                {
+                    "year": year,
+                    "metric": col,
+                    "value": None if pd.isna(value) else round(value, 2),
+                    "growth_rate": None if pd.isna(yearly[f"{col}_growth_rate"].loc[year]) else round(yearly[f"{col}_growth_rate"].loc[year], 2),  # type: ignore
+                }
+            )
     csv_df = pd.DataFrame(records)
-    response = HttpResponse(content_type="text/csv")
+    buffer = io.StringIO()
+    csv_df.to_csv(buffer, index=False)
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="time_trends.csv"'
-    csv_df.to_csv(path_or_buf=response, index=False)
     cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return response

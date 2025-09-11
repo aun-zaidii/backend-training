@@ -1,3 +1,5 @@
+from typing import cast
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
 from django.core.exceptions import ValidationError
@@ -49,12 +51,13 @@ class UserLoginSerializer(serializers.Serializer):
             )
         else:
             refresh = RefreshToken.for_user(user)
-            update_last_login(None, user)
-        return {
-            "email": user.email,
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        }
+            update_last_login(User, user)
+            user_obj = cast(User, user)
+            return {
+                "email": user_obj.email,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):

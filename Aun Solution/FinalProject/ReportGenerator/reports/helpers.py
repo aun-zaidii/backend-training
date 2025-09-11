@@ -1,4 +1,5 @@
 import hashlib
+import io
 import json
 from typing import Dict, List, Optional, Union
 
@@ -94,9 +95,10 @@ def generate_county_report(data: Dict[str, Union[str, int, float]]) -> HttpRespo
         )
 
     df = pd.DataFrame(report_data)
-    response = HttpResponse(content_type="text/csv")
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="census_report.csv"'
-    df.to_csv(response, index=False)
     cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return response
 
@@ -140,8 +142,9 @@ def generate_detail_report(data) -> HttpResponse:
         "disability_pct",
     ]
     df = pd.DataFrame(list(queryset.values(*detail_fields)))
-    response = HttpResponse(content_type="text/csv")
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="county_detail_report.csv"'
-    df.to_csv(response, index=False)
     cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return response

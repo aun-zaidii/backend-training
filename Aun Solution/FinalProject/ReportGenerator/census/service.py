@@ -1,11 +1,11 @@
 import os
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional, Union
 
 import requests
 
 from .models import CensusCounty, CensusDetail, CensusState
 
-api:Optional[str] = (os.getenv("API"))
+api: Optional[str] = os.getenv("API")
 variables: str = (
     "NAME,DP05_0001E,DP05_0017E,DP03_0062E,DP03_0128PE,DP03_0009PE,DP04_0001E,DP04_0046PE,DP02_0068PE,DP05_0002E,DP05_0003E,DP05_0077PE,DP05_0078PE,DP05_0080PE,DP05_0071PE,DP02_0094PE,DP02_0111PE,DP02_0016E,DP02_0017E,DP02_0019PE,DP02_0022PE,DP02_0067PE,DP04_0047PE,DP04_0019E,DP04_0045E,DP04_0134E,DP04_0101E,DP03_0063E,DP03_0021PE,DP03_0022PE,DP03_0024PE,DP03_0096PE,DP02_0072PE"
 )
@@ -48,7 +48,9 @@ keys: List[str] = [
 ]
 
 
-def request_data_for_single_year(year:int) -> List[Dict[str, Optional[Union[int, float, str]]]]:
+def request_data_for_single_year(
+    year: int,
+) -> List[Dict[str, Optional[Union[int, float, str]]]]:
     if year == 2020:
         raise ValueError(
             "ACS 1-Year Profile estimates were not published for 2020 due to COVID-19."
@@ -71,7 +73,7 @@ def request_data_for_single_year(year:int) -> List[Dict[str, Optional[Union[int,
     }
     response = requests.get(url, params=params)
     response.raise_for_status()
-    data: List[List [Optional[Union[str, int, float]]]] = response.json()
+    data: List[List[Optional[Union[str, int, float]]]] = response.json()
     key_data: List[Dict[str, Optional[Union[str, int, float]]]] = [
         dict(zip(keys, row)) for row in data
     ]
@@ -81,11 +83,13 @@ def request_data_for_single_year(year:int) -> List[Dict[str, Optional[Union[int,
         row["state_name"] = state
         row["county_name"] = county
         row["year"] = year
-    typed_data: List[Dict[str, Optional[Union[str, int, float]]]] = clean_and_cast(formatted_data)
+    typed_data: List[Dict[str, Optional[Union[str, int, float]]]] = clean_and_cast(
+        formatted_data
+    )
     for record in typed_data:
         for key in record:
             value = record[key]
-            if value is not None and isinstance(value, (int, float)) and  value < 0:
+            if value is not None and isinstance(value, (int, float)) and value < 0:
                 record[key] = None
     for record in typed_data:
         for key in record:
@@ -94,7 +98,9 @@ def request_data_for_single_year(year:int) -> List[Dict[str, Optional[Union[int,
     return typed_data
 
 
-def request_data_for_multiple_years(years:List[int]) ->Dict[str, List[List[Dict[str, Optional[Union[int, float, str]]]]]]:
+def request_data_for_multiple_years(
+    years: List[int],
+) -> Dict[str, List[List[Dict[str, Optional[Union[int, float, str]]]]]]:
     data: List[List[Dict[str, Optional[Union[int, float, str]]]]] = []
     for year in years:
         single_year_data = request_data_for_single_year(year)

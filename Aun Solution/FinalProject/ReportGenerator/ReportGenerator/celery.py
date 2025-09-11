@@ -16,7 +16,7 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     "run-census-job-every-october": {
         "task": "census.tasks.process_census_data",
-        "schedule": crontab(minute=0, hour=0, day_of_month=1, month_of_year=10),
+        "schedule": crontab(minute="0", hour="0", day_of_month="1", month_of_year="10"),
         "args": (),
     }
 }
