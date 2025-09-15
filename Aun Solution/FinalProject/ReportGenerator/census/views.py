@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,10 +34,14 @@ class DataFetchView(APIView):
                 2022,
                 2023,
             ]
-            result = process_census_data.delay(years)
+            process_census_data.delay(years)
             return Response({"result": "success"}, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"failed": str(e)})
+            return Response(
+                {"failed": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class StatusLog(APIView):
@@ -49,8 +54,12 @@ class StatusLog(APIView):
             log = CensusLog.objects.get(task_id=task_id)
             serializer = CensusLogSerializer(log)
             return Response({"result": serializer.data}, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"failed": str(e)})
+            return Response(
+                {"failed": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ManualFetchView(APIView):
@@ -61,7 +70,11 @@ class ManualFetchView(APIView):
         try:
             years = [2021]
             data = request_data_for_multiple_years(years)
-            result = save_to_db(data)
+            save_to_db(data)
             return Response({"result": "success"}, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"failed": str(e)})
+            return Response(
+                {"failed": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

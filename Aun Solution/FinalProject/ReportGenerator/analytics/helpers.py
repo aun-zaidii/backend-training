@@ -1,7 +1,7 @@
 import hashlib
 import io
 import json
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ def generate_cache_key(data, prefix="census_analytics"):
 
 
 def data_aggrigation(
-    filters: Dict[str, Union[str, int]],
+    filters: Dict[str, Optional[Union[str, int]]],
 ) -> Dict[str, Dict[str, Optional[Union[int, float]]]]:
     cache_key = generate_cache_key(filters, "census_aggrigation")
     cached_response = cache.get(cache_key)
@@ -35,16 +35,19 @@ def data_aggrigation(
         print(f"Cache HIT for {cache_key}")
         return cached_response
     print(f"Cache MISS for {cache_key}")
-    queryset = CensusCounty.objects.select_related("state", "detail")
+    filter_kwargs = {}
     state_name = filters.get("state_name")
+    if state_name is not None:
+        filter_kwargs["state_name"] = state_name
     year = filters.get("year")
+    if year is not None:
+        filter_kwargs["year"] = year
     county_name = filters.get("county_name")
-    if state_name:
-        queryset = queryset.filter(state__state_name=state_name)
-    if year:
-        queryset = queryset.filter(year=year)
-    if county_name:
-        queryset = queryset.filter(county_name=county_name)
+    if county_name is not None:
+        filter_kwargs["county_name"] = county_name
+    queryset = CensusCounty.objects.select_related("state", "detail").filter(
+        **filter_kwargs
+    )
     data: List[Dict[str, Optional[Union[int, float, str]]]] = []
     for county in queryset:
         detail = county.detail
@@ -124,29 +127,32 @@ def data_aggrigation(
         "median_household_income": ["mean", "sum", "min", "max"],
     }
     aggrigated_data = df.agg(agg_map)  # type: ignore
-    aggrigated_data = aggrigated_data.replace([np.nan, np.inf, -np.inf], None)
+    aggrigated_data = aggrigated_data.replace([np.nan], None)
     result = aggrigated_data.to_dict()
     cache.set(cache_key, result, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
     return result
 
 
-def statistical_analysis(filters: Dict[str, Union[str, int]]):
+def statistical_analysis(filters: Dict[str, Optional[Union[str, int]]]):
     cache_key = generate_cache_key(filters, "census_analytics")
     cached_response = cache.get(cache_key)
     if cached_response:
         print(f"Cache HIT for {cache_key}")
         return cached_response
     print(f"Cache MISS for {cache_key}")
-    queryset = CensusCounty.objects.select_related("state", "detail")
+    filter_kwargs = {}
     state_name = filters.get("state_name")
+    if state_name is not None:
+        filter_kwargs["state_name"] = state_name
     year = filters.get("year")
+    if year is not None:
+        filter_kwargs["year"] = year
     county_name = filters.get("county_name")
-    if state_name:
-        queryset = queryset.filter(state__state_name=state_name)
-    if year:
-        queryset = queryset.filter(year=year)
-    if county_name:
-        queryset = queryset.filter(county_name=county_name)
+    if county_name is not None:
+        filter_kwargs["county_name"] = county_name
+    queryset = CensusCounty.objects.select_related("state", "detail").filter(
+        **filter_kwargs
+    )
     data: List[Dict[str, Optional[Union[int, float]]]] = []
     for county in queryset:
         detail = county.detail
@@ -204,7 +210,7 @@ def statistical_analysis(filters: Dict[str, Union[str, int]]):
     return stats
 
 
-def time_based_analysis(filters: Dict[str, Union[str, int]]) -> HttpResponse:
+def time_based_analysis(filters: Dict[str, Optional[Union[str, int]]]) -> HttpResponse:
     cache_key = generate_cache_key(filters, "census_time_trends")
     cached_response = cache.get(cache_key)
     if cached_response:
@@ -212,22 +218,26 @@ def time_based_analysis(filters: Dict[str, Union[str, int]]) -> HttpResponse:
         return cached_response
     print(f"Cache MISS for {cache_key}")
 
-    queryset = CensusCounty.objects.select_related("state", "detail")
+    filter_kwargs: Dict[
+        str, Union[str, int, Tuple[Union[str, int], Union[str, int]]]
+    ] = {}
     state_name = filters.get("state_name")
+    if state_name is not None:
+        filter_kwargs["state__state_name"] = state_name
     county_name = filters.get("county_name")
+    if county_name is not None:
+        filter_kwargs["county_name"] = county_name
     start_year = filters.get("start_year")
     end_year = filters.get("end_year")
-
-    if state_name:
-        queryset = queryset.filter(state__state_name=state_name)
-    if county_name:
-        queryset = queryset.filter(county_name=county_name)
-    if start_year and end_year:
-        queryset = queryset.filter(year__range=[start_year, end_year])
-    elif start_year:
-        queryset = queryset.filter(year__gte=start_year)
-    elif end_year:
-        queryset = queryset.filter(year__lte=end_year)
+    if start_year is not None and end_year is not None:
+        filter_kwargs["year__range"] = (start_year, end_year)
+    elif start_year is not None:
+        filter_kwargs["year__gte"] = start_year
+    elif end_year is not None:
+        filter_kwargs["year__lte"] = end_year
+    queryset = CensusCounty.objects.select_related("state", "detail").filter(
+        **filter_kwargs
+    )
 
     data: List[Dict[str, Optional[Union[int, float, str]]]] = []
     for county in queryset:
@@ -263,18 +273,30 @@ def time_based_analysis(filters: Dict[str, Union[str, int]]) -> HttpResponse:
             continue
         yearly[f"{col}_growth_rate"] = yearly[col].pct_change() * 100
         for year, value in yearly[col].items():
+            growth_value = yearly.at[year, f"{col}_growth_rate"]
+            if growth_value is None or pd.isna(growth_value):
+                growth_rate = None
+            elif isinstance(growth_value, (float)):
+                growth_rate = round(growth_value, 2)
+            else:
+                numeric_value = float(growth_value)
+                growth_rate = round(numeric_value, 2)
             records.append(
                 {
                     "year": year,
                     "metric": col,
                     "value": None if pd.isna(value) else round(value, 2),
-                    "growth_rate": None if pd.isna(yearly[f"{col}_growth_rate"].loc[year]) else round(yearly[f"{col}_growth_rate"].loc[year], 2),  # type: ignore
+                    "growth_rate": growth_rate,
                 }
             )
+    # result = records
     csv_df = pd.DataFrame(records)
+    csv_df = csv_df.replace([np.nan], None)
+    result = csv_df.to_dict()
+    breakpoint()
     buffer = io.StringIO()
     csv_df.to_csv(buffer, index=False)
     response = HttpResponse(buffer.getvalue(), content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="time_trends.csv"'
     cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
-    return response
+    return result

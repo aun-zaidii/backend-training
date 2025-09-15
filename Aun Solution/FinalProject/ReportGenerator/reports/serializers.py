@@ -30,62 +30,47 @@ class CountyReportRequestSerializer(serializers.Serializer):
 
 
 class DetailReportRequestSerializer(serializers.Serializer):
+    county_name = serializers.CharField()
+    year = serializers.IntegerField()
+
+
+class CountyReportResponseSerializer(serializers.Serializer):
+    state_name = serializers.CharField(required=False)
+    state_no = serializers.CharField(required=False)
+    county_no = serializers.CharField(required=False)
     county_name = serializers.CharField(required=False)
     year = serializers.IntegerField(required=False)
+    total_population = serializers.IntegerField(required=False)
+    total_houses = serializers.IntegerField(required=False)
+    home_ownership_rate = serializers.FloatField(required=False)
+    poverty_rate = serializers.FloatField(required=False)
+    unemployment_rate = serializers.FloatField(required=False)
+    median_age = serializers.FloatField(required=False)
+    bachelors_or_higher_degree_pct = serializers.FloatField(required=False)
 
 
-class CensusCountyReportResponseSerializer(serializers.ModelSerializer):
-
-    state_name = serializers.CharField(source="state.state_name")
-    state_no = serializers.CharField(source="state.state_no")
-
-    class Meta:
-        model = CensusCounty
-        fields = [
-            "state_name",
-            "state_no",
-            "county_no",
-            "county_name",
-            "year",
-            "total_population",
-            "total_houses",
-            "home_ownership_rate",
-            "poverty_rate",
-            "unemployment_rate",
-            "median_age",
-            "bachelors_or_higher_degree_pct",
-        ]
-
-
-class DetailResponseSerializer(serializers.Serializer):
-    male_population = serializers.IntegerField()
-    female_population = serializers.IntegerField()
-
-    white_alone_pct = serializers.FloatField()
-    black_alone_pct = serializers.FloatField()
-    asian_alone_pct = serializers.FloatField()
-    hispanic_latino_pct = serializers.FloatField()
-    foreign_born_pct = serializers.FloatField()
-    non_english_home_pct = serializers.FloatField()
-
-    avg_household_size = serializers.FloatField()
-    avg_family_size = serializers.FloatField()
-
-    married_couple_families_pct = serializers.FloatField()
-    single_parent_families_pct = serializers.FloatField()
-    hs_or_higher_pct = serializers.FloatField()
-    renter_occupied_pct = serializers.FloatField()
-
-    median_year_built = serializers.IntegerField()
-    median_rooms = serializers.FloatField()
-
-    median_gross_rent = serializers.IntegerField()
-    median_owner_costs_mortgage = serializers.IntegerField()
-    median_household_income = serializers.IntegerField()
-
-    workers_public_transport_pct = serializers.FloatField()
-    workers_car_pct = serializers.FloatField()
-    workers_home_pct = serializers.FloatField()
-
-    health_insurance_coverage_pct = serializers.FloatField()
-    disability_pct = serializers.FloatField()
+class DetailReportResponseSerializer(serializers.Serializer):
+    male_population = serializers.IntegerField(required=False)
+    female_population = serializers.IntegerField(required=False)
+    white_alone_pct = serializers.FloatField(required=False)
+    black_alone_pct = serializers.FloatField(required=False)
+    asian_alone_pct = serializers.FloatField(required=False)
+    hispanic_latino_pct = serializers.FloatField(required=False)
+    foreign_born_pct = serializers.FloatField(required=False)
+    non_english_home_pct = serializers.FloatField(required=False)
+    avg_household_size = serializers.FloatField(required=False)
+    avg_family_size = serializers.FloatField(required=False)
+    married_couple_families_pct = serializers.FloatField(required=False)
+    single_parent_families_pct = serializers.FloatField(required=False)
+    hs_or_higher_pct = serializers.FloatField(required=False)
+    renter_occupied_pct = serializers.FloatField(required=False)
+    median_year_built = serializers.IntegerField(required=False)
+    median_rooms = serializers.FloatField(required=False)
+    median_gross_rent = serializers.IntegerField(required=False)
+    median_owner_costs_mortgage = serializers.IntegerField(required=False)
+    median_household_income = serializers.IntegerField(required=False)
+    workers_public_transport_pct = serializers.FloatField(required=False)
+    workers_car_pct = serializers.FloatField(required=False)
+    workers_home_pct = serializers.FloatField(required=False)
+    health_insurance_coverage_pct = serializers.FloatField(required=False)
+    disability_pct = serializers.FloatField(required=False)

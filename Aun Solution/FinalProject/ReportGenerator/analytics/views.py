@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -17,7 +18,7 @@ from .serializers import (AggregationResponseSerializer,
 
 
 class AggrigationView(APIView):
-    permission_classes = [IsAdminOrModerator]
+    permission_classes = [IsAdmin]
     authentication_classes = [JWTAuthentication]
 
     def post(self, request) -> Response:
@@ -28,8 +29,12 @@ class AggrigationView(APIView):
             response_serializer = AggregationResponseSerializer(instance=result)
             final_result = response_serializer.data
             return Response({"success": final_result})
+        except ValidationError as e:
+            return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"failed": str(e)})
+            return Response(
+                {"failed": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class StatsView(APIView):
@@ -45,8 +50,12 @@ class StatsView(APIView):
             response_serializer = StatisticalAnalysisResponseSerializer(instance=result)
             final_result = response_serializer.data
             return Response({"success": final_result})
+        except ValidationError as e:
+            return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"failed": str(e)})
+            return Response(
+                {"failed": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class TimeBaseAnalytics(APIView):
@@ -58,7 +67,10 @@ class TimeBaseAnalytics(APIView):
             serializer = TimeBaseRequestSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             result = time_based_analysis(serializer.data)
-            response = result
-            return response
+            return Response(result)
+        except ValidationError as e:
+            return Response({"failed": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"failed": str(e)})
+            return Response(
+                {"failed": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -9,8 +9,12 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import (UserLoginSerializer, UserRegistrationSerializer,
-                          UserUpdateSerializer)
+from .constants import (DEFAULT_FROM_EMAIL, REGISTRATION_EMAIL_MESSAGE,
+                        REGISTRATION_EMAIL_SUBJECT)
+from .serializers import (LoginRequestSerializer, LogoutRerquestSerializer,
+                          RegisterRequestSerializer,
+                          UpdateUserRequestSerialiizer, UserLoginSerializer,
+                          UserRegistrationSerializer, UserUpdateSerializer)
 
 
 class UserRegistrationView(APIView):
@@ -19,15 +23,16 @@ class UserRegistrationView(APIView):
 
     def post(self, request: Request) -> Response:
         try:
-            data = request.data
-            serializer = UserRegistrationSerializer(data=data)
-            serializer.is_valid()
+            request_serializer = RegisterRequestSerializer(data=request.data)
+            request_serializer.is_valid(raise_exception=True)
+            serializer = UserRegistrationSerializer(data=request_serializer.data)
+            serializer.is_valid(raise_exception=True)
             serializer.save()
             send_mail(
-                "Registeration MAil",
-                "You are registered successfully",
-                "aun.zaidi@evolvyxlabs.com",
-                [data["email"]],
+                REGISTRATION_EMAIL_SUBJECT,
+                REGISTRATION_EMAIL_MESSAGE,
+                DEFAULT_FROM_EMAIL,
+                [request_serializer.data["email"]],
                 fail_silently=False,
             )
             return Response(
@@ -48,7 +53,9 @@ class UserLogin(APIView):
 
     def post(self, request: Request) -> Response:
         try:
-            serializer = UserLoginSerializer(data=request.data)
+            request_serializer = LoginRequestSerializer(data=request.data)
+            request_serializer.is_valid(raise_exception=True)
+            serializer = UserLoginSerializer(data=request_serializer.data)
             serializer.is_valid(raise_exception=True)
             return Response({"success": serializer.data})
         except ValidationError as e:
@@ -65,7 +72,9 @@ class UserLogout(APIView):
 
     def post(self, request: Request) -> Response:
         try:
-            refresh_token = request.data["refresh_token"]
+            request_serializer = LogoutRerquestSerializer(data=request.data)
+            request_serializer.is_valid(raise_exception=True)
+            refresh_token = request_serializer.data["refresh_token"]
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response(status=status.HTTP_205_RESET_CONTENT)
@@ -79,9 +88,12 @@ class UserUpdate(APIView):
 
     def put(self, request: Request) -> Response:
         try:
-            data = request.data
+            request_serializer = UpdateUserRequestSerialiizer(data=request.data)
+            request_serializer.is_valid(raise_exception=True)
             user = request.user
-            serializer = UserUpdateSerializer(instance=user, data=data)
+            serializer = UserUpdateSerializer(
+                instance=user, data=request_serializer.data
+            )
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(

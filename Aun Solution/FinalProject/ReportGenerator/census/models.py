@@ -39,7 +39,7 @@ class CensusCounty(models.Model):
 
 class CensusDetail(models.Model):
     county = models.OneToOneField(
-        CensusCounty, on_delete=models.CASCADE, related_name="detail"    # type: ignore
+        CensusCounty, on_delete=models.CASCADE, related_name="detail"  # type: ignore
     )
     male_population: models.IntegerField = models.IntegerField(default=0)
     female_population: models.IntegerField = models.IntegerField(default=0)
