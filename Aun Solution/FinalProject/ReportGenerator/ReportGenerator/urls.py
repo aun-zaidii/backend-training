@@ -23,4 +23,5 @@ urlpatterns = [
     path("", include("user.urls")),
     path("", include("census.urls")),
     path("", include("reports.urls")),
+    path("", include("analytics.urls")),
 ]

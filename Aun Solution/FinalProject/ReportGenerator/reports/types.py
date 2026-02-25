@@ -1,0 +1,43 @@
+from typing import Optional, TypedDict
+
+
+class CountyReportData(TypedDict):
+    state_name: Optional[str]
+    state_no: Optional[str]
+    county_no: Optional[str]
+    county_name: Optional[str]
+    year: Optional[int]
+    total_population: Optional[int]
+    total_houses: Optional[int]
+    home_ownership_rate: Optional[float]
+    poverty_rate: Optional[float]
+    unemployment_rate: Optional[float]
+    median_age: Optional[float]
+    bachelors_or_higher_degree_pct: Optional[float]
+
+
+class DetailReportData(TypedDict):
+    male_population: Optional[int]
+    female_population: Optional[int]
+    white_alone_pct: Optional[float]
+    black_alone_pct: Optional[float]
+    asian_alone_pct: Optional[float]
+    hispanic_latino_pct: Optional[float]
+    foreign_born_pct: Optional[float]
+    non_english_home_pct: Optional[float]
+    avg_household_size: Optional[float]
+    avg_family_size: Optional[float]
+    married_couple_families_pct: Optional[float]
+    single_parent_families_pct: Optional[float]
+    hs_or_higher_pct: Optional[float]
+    renter_occupied_pct: Optional[float]
+    median_year_built: Optional[int]
+    median_rooms: Optional[float]
+    median_gross_rent: Optional[int]
+    median_owner_costs_mortgage: Optional[int]
+    median_household_income: Optional[int]
+    workers_public_transport_pct: Optional[float]
+    workers_car_pct: Optional[float]
+    workers_home_pct: Optional[float]
+    health_insurance_coverage_pct: Optional[float]
+    disability_pct: Optional[float]

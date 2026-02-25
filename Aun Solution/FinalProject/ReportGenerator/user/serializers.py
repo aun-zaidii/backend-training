@@ -1,3 +1,5 @@
+from typing import cast
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
 from django.core.exceptions import ValidationError
@@ -9,15 +11,17 @@ from .models import User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password2 = serializers.CharField(style={"input_type": "password"}, write_only=True)
+    confirm_password = serializers.CharField(
+        style={"input_type": "password"}, write_only=True
+    )
 
     class Meta:
         model = User
-        fields = ["username", "email", "password", "password2", "role"]
+        fields = ["username", "email", "password", "confirm_password", "role"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, data: dict[str, str]):
-        if data["password"] != data["password2"]:
+        if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError(
                 {"password": "Password fields didn't match."}
             )
@@ -40,8 +44,8 @@ class UserLoginSerializer(serializers.Serializer):
     refresh = serializers.CharField(max_length=255, read_only=True)
 
     def validate(self, data: dict[str, str]) -> dict[str, str]:
-        email = data.get("email", None)
-        password = data.get("password", None)
+        email = data.get("email")
+        password = data.get("password")
         user = authenticate(email=email, password=password)
         if user is None:
             raise serializers.ValidationError(
@@ -49,22 +53,24 @@ class UserLoginSerializer(serializers.Serializer):
             )
         else:
             refresh = RefreshToken.for_user(user)
-            update_last_login(None, user)
-        return {
-            "email": user.email,
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        }
+            update_last_login(User, user)
+            user_obj = cast(User, user)
+            return {
+                "email": user_obj.email,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     current_password = serializers.CharField(write_only=True, required=False)
     new_password = serializers.CharField(write_only=True, required=False)
     username = serializers.CharField(required=False)
+    role = serializers.CharField(required=False)
 
     class Meta:
         model = User
-        fields = ["username", "current_password", "new_password"]
+        fields = ["username", "role", "current_password", "new_password"]
 
     def validate(self, data):
         new_password = data.get("new_password")
@@ -89,3 +95,28 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class RegisterRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField()
+    password = serializers.CharField(min_length=8)
+    confirm_password = serializers.CharField(min_length=8)
+    role = serializers.CharField()
+
+
+class LoginRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(min_length=8)
+
+
+class UpdateUserRequestSerialiizer(serializers.Serializer):
+    email = serializers.EmailField(required=False)
+    username = serializers.CharField(required=False)
+    current_password = serializers.CharField(min_length=8, required=False)
+    password = serializers.CharField(min_length=8, required=False)
+    role = serializers.CharField(required=False)
+
+
+class LogoutRerquestSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField()

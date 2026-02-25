@@ -1,0 +1,302 @@
+import hashlib
+import io
+import json
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
+import pandas as pd
+from django.conf import settings
+from django.core.cache import cache
+from django.http import HttpResponse
+
+from census.models import CensusCounty
+
+
+def clean_value(value):
+    if pd.isna(value) or np.isinf(value):
+        return None
+    if hasattr(value, "item"):
+        return value.item()
+    return value
+
+
+def generate_cache_key(data, prefix="census_analytics"):
+    sorted_data = json.dumps(data, sort_keys=True)
+    key_hash = hashlib.md5(sorted_data.encode()).hexdigest()
+    return f"{prefix}_{key_hash}"
+
+
+def data_aggrigation(
+    filters: Dict[str, Optional[Union[str, int]]],
+) -> Dict[str, Dict[str, Optional[Union[int, float]]]]:
+    cache_key = generate_cache_key(filters, "census_aggrigation")
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        print(f"Cache HIT for {cache_key}")
+        return cached_response
+    print(f"Cache MISS for {cache_key}")
+    filter_kwargs = {}
+    state_name = filters.get("state_name")
+    if state_name is not None:
+        filter_kwargs["state_name"] = state_name
+    year = filters.get("year")
+    if year is not None:
+        filter_kwargs["year"] = year
+    county_name = filters.get("county_name")
+    if county_name is not None:
+        filter_kwargs["county_name"] = county_name
+    queryset = CensusCounty.objects.select_related("state", "detail").filter(
+        **filter_kwargs
+    )
+    data: List[Dict[str, Optional[Union[int, float, str]]]] = []
+    for county in queryset:
+        detail = county.detail
+
+        data.append(
+            {
+                "state_name": county.state.state_name,
+                "county_name": county.county_name,
+                "total_population": county.total_population,
+                "total_houses": county.total_houses,
+                "home_ownership_rate": county.home_ownership_rate,
+                "poverty_rate": county.poverty_rate,
+                "unemployment_rate": county.unemployment_rate,
+                "median_age": county.median_age,
+                "bachelors_or_higher_degree_pct": county.bachelors_or_higher_degree_pct,
+                "male_population": detail.male_population,
+                "female_population": detail.female_population,
+                "white_alone_pct": detail.white_alone_pct,
+                "black_alone_pct": detail.black_alone_pct,
+                "asian_alone_pct": detail.asian_alone_pct,
+                "hispanic_latino_pct": detail.hispanic_latino_pct,
+                "foreign_born_pct": detail.foreign_born_pct,
+                "non_english_home_pct": detail.non_english_home_pct,
+                "avg_household_size": detail.avg_household_size,
+                "avg_family_size": detail.avg_family_size,
+                "married_couple_families_pct": detail.married_couple_families_pct,
+                "single_parent_families_pct": detail.single_parent_families_pct,
+                "hs_or_higher_pct": detail.hs_or_higher_pct,
+                "renter_occupied_pct": detail.renter_occupied_pct,
+                "median_year_built": detail.median_year_built,
+                "median_rooms": detail.median_rooms,
+                "median_gross_rent": detail.median_gross_rent,
+                "median_owner_costs_mortgage": detail.median_owner_costs_mortgage,
+                "median_household_income": detail.median_household_income,
+                "workers_public_transport_pct": detail.workers_public_transport_pct,
+                "workers_car_pct": detail.workers_car_pct,
+                "workers_home_pct": detail.workers_home_pct,
+                "health_insurance_coverage_pct": detail.health_insurance_coverage_pct,
+                "disability_pct": detail.disability_pct,
+            }
+        )
+
+    df = pd.DataFrame(data)
+    agg_map: Dict[str, Union[str, List[str]]] = {
+        "state_name": "nunique",
+        "county_name": "count",
+        "total_population": ["sum", "mean", "min", "max"],
+        "total_houses": ["sum", "mean", "min", "max"],
+        "male_population": ["sum", "mean", "min", "max"],
+        "female_population": ["sum", "mean", "min", "max"],
+        "home_ownership_rate": ["mean", "min", "max"],
+        "poverty_rate": ["mean", "min", "max"],
+        "unemployment_rate": ["mean", "min", "max"],
+        "bachelors_or_higher_degree_pct": ["mean", "min", "max"],
+        "white_alone_pct": ["mean", "min", "max"],
+        "black_alone_pct": ["mean", "min", "max"],
+        "asian_alone_pct": ["mean", "min", "max"],
+        "hispanic_latino_pct": ["mean", "min", "max"],
+        "foreign_born_pct": ["mean", "min", "max"],
+        "non_english_home_pct": ["mean", "min", "max"],
+        "married_couple_families_pct": ["mean", "min", "max"],
+        "single_parent_families_pct": ["mean", "min", "max"],
+        "hs_or_higher_pct": ["mean", "min", "max"],
+        "renter_occupied_pct": ["mean", "min", "max"],
+        "workers_public_transport_pct": ["mean", "min", "max"],
+        "workers_car_pct": ["mean", "min", "max"],
+        "workers_home_pct": ["mean", "min", "max"],
+        "health_insurance_coverage_pct": ["mean", "min", "max"],
+        "disability_pct": ["mean", "min", "max"],
+        "median_age": ["mean", "min", "max"],
+        "avg_household_size": ["mean", "min", "max"],
+        "avg_family_size": ["mean", "min", "max"],
+        "median_year_built": ["mean", "min", "max"],
+        "median_rooms": ["mean", "min", "max"],
+        "median_gross_rent": ["mean", "min", "max"],
+        "median_owner_costs_mortgage": ["mean", "min", "max"],
+        "median_household_income": ["mean", "sum", "min", "max"],
+    }
+    aggrigated_data = df.agg(agg_map)  # type: ignore
+    aggrigated_data = aggrigated_data.replace([np.nan], None)
+    result = aggrigated_data.to_dict()
+    cache.set(cache_key, result, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
+    return result
+
+
+def statistical_analysis(filters: Dict[str, Optional[Union[str, int]]]):
+    cache_key = generate_cache_key(filters, "census_analytics")
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        print(f"Cache HIT for {cache_key}")
+        return cached_response
+    print(f"Cache MISS for {cache_key}")
+    filter_kwargs = {}
+    state_name = filters.get("state_name")
+    if state_name is not None:
+        filter_kwargs["state_name"] = state_name
+    year = filters.get("year")
+    if year is not None:
+        filter_kwargs["year"] = year
+    county_name = filters.get("county_name")
+    if county_name is not None:
+        filter_kwargs["county_name"] = county_name
+    queryset = CensusCounty.objects.select_related("state", "detail").filter(
+        **filter_kwargs
+    )
+    data: List[Dict[str, Optional[Union[int, float]]]] = []
+    for county in queryset:
+        detail = county.detail
+
+        data.append(
+            {
+                "total_population": county.total_population,
+                "total_houses": county.total_houses,
+                "home_ownership_rate": county.home_ownership_rate,
+                "poverty_rate": county.poverty_rate,
+                "unemployment_rate": county.unemployment_rate,
+                "median_age": county.median_age,
+                "bachelors_or_higher_degree_pct": county.bachelors_or_higher_degree_pct,
+                "male_population": detail.male_population,
+                "female_population": detail.female_population,
+                "white_alone_pct": detail.white_alone_pct,
+                "black_alone_pct": detail.black_alone_pct,
+                "asian_alone_pct": detail.asian_alone_pct,
+                "hispanic_latino_pct": detail.hispanic_latino_pct,
+                "foreign_born_pct": detail.foreign_born_pct,
+                "non_english_home_pct": detail.non_english_home_pct,
+                "avg_household_size": detail.avg_household_size,
+                "avg_family_size": detail.avg_family_size,
+                "married_couple_families_pct": detail.married_couple_families_pct,
+                "single_parent_families_pct": detail.single_parent_families_pct,
+                "hs_or_higher_pct": detail.hs_or_higher_pct,
+                "renter_occupied_pct": detail.renter_occupied_pct,
+                "median_year_built": detail.median_year_built,
+                "median_rooms": detail.median_rooms,
+                "median_gross_rent": detail.median_gross_rent,
+                "median_owner_costs_mortgage": detail.median_owner_costs_mortgage,
+                "median_household_income": detail.median_household_income,
+                "workers_public_transport_pct": detail.workers_public_transport_pct,
+                "workers_car_pct": detail.workers_car_pct,
+                "workers_home_pct": detail.workers_home_pct,
+                "health_insurance_coverage_pct": detail.health_insurance_coverage_pct,
+                "disability_pct": detail.disability_pct,
+            }
+        )
+
+    df = pd.DataFrame(data)
+    stats: Dict[str, Dict[str, Optional[float]]] = {}
+
+    for col in df.columns:
+        col_data = df[col].dropna()
+        stats[col] = {
+            "25th_percentile": clean_value(col_data.quantile(0.25)),
+            "50th_percentile": clean_value(col_data.quantile(0.50)),
+            "75th_percentile": clean_value(col_data.quantile(0.75)),
+            "95th_percentile": clean_value(col_data.quantile(0.95)),
+            "Standard Deviation": clean_value(col_data.std()),
+            "Variance": clean_value(col_data.var()),
+        }
+    cache.set(cache_key, stats, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
+    return stats
+
+
+def time_based_analysis(filters: Dict[str, Optional[Union[str, int]]]) -> HttpResponse:
+    cache_key = generate_cache_key(filters, "census_time_trends")
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        print(f"Cache HIT for {cache_key}")
+        return cached_response
+    print(f"Cache MISS for {cache_key}")
+
+    filter_kwargs: Dict[
+        str, Union[str, int, Tuple[Union[str, int], Union[str, int]]]
+    ] = {}
+    state_name = filters.get("state_name")
+    if state_name is not None:
+        filter_kwargs["state__state_name"] = state_name
+    county_name = filters.get("county_name")
+    if county_name is not None:
+        filter_kwargs["county_name"] = county_name
+    start_year = filters.get("start_year")
+    end_year = filters.get("end_year")
+    if start_year is not None and end_year is not None:
+        filter_kwargs["year__range"] = (start_year, end_year)
+    elif start_year is not None:
+        filter_kwargs["year__gte"] = start_year
+    elif end_year is not None:
+        filter_kwargs["year__lte"] = end_year
+    queryset = CensusCounty.objects.select_related("state", "detail").filter(
+        **filter_kwargs
+    )
+
+    data: List[Dict[str, Optional[Union[int, float, str]]]] = []
+    for county in queryset:
+        detail = county.detail
+        data.append(
+            {
+                "year": county.year,
+                "state_name": county.state.state_name,
+                "county_name": county.county_name,
+                "total_population": county.total_population,
+                "avg_family_size": detail.avg_family_size,
+                "avg_household_size": detail.avg_household_size,
+                "median_household_income": detail.median_household_income,
+            }
+        )
+
+    df = pd.DataFrame(data)
+    yearly = (
+        df.groupby("year")
+        .agg(
+            {
+                "total_population": "sum",
+                "avg_family_size": "mean",
+                "avg_household_size": "mean",
+                "median_household_income": "mean",
+            }
+        )
+        .sort_index()
+    )
+    records = []
+    for col in yearly.columns:
+        if col.endswith("_growth_rate"):
+            continue
+        yearly[f"{col}_growth_rate"] = yearly[col].pct_change() * 100
+        for year, value in yearly[col].items():
+            growth_value = yearly.at[year, f"{col}_growth_rate"]
+            if growth_value is None or pd.isna(growth_value):
+                growth_rate = None
+            elif isinstance(growth_value, (float)):
+                growth_rate = round(growth_value, 2)
+            else:
+                numeric_value = float(growth_value)
+                growth_rate = round(numeric_value, 2)
+            records.append(
+                {
+                    "year": year,
+                    "metric": col,
+                    "value": None if pd.isna(value) else round(value, 2),
+                    "growth_rate": growth_rate,
+                }
+            )
+    # result = records
+    csv_df = pd.DataFrame(records)
+    csv_df = csv_df.replace([np.nan], None)
+    result = csv_df.to_dict()
+    breakpoint()
+    buffer = io.StringIO()
+    csv_df.to_csv(buffer, index=False)
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="time_trends.csv"'
+    cache.set(cache_key, response, timeout=getattr(settings, "CACHE_TIMEOUT", 86400))
+    return result
